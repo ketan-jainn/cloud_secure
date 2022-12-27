@@ -19,7 +19,7 @@ class EncryptDataServices {
   void sendData(Item data) async {
     var getURL = Uri.parse(
         "https://lxk58gv3gg.execute-api.us-east-1.amazonaws.com/data");
-    var body = itemToJson(data);
+    String body = itemToJson(data);
     final response = await http.put(
       getURL,
       headers: {"Content-Type": "application/json"},
