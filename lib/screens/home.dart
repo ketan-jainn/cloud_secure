@@ -1,30 +1,60 @@
+import 'package:basic_utils/basic_utils.dart';
 import 'package:cloud_secure/components/green_button.dart';
 import 'package:cloud_secure/models/encrypt_data_model.dart';
 import 'package:cloud_secure/services/encrypt_data_crud.dart';
+import 'package:encrypt/encrypt.dart';
 import 'package:flutter/material.dart';
-import 'package:crypton/crypton.dart';
-// ignore: depend_on_referenced_packages
-
+import 'package:flutter/services.dart';
 import '../components/custom_text_box.dart';
-
-String? encrypted = "";
-String decrypted = "";
-RSAKeypair rsaKeypair = RSAKeypair.fromRandom();
 
 class Home extends StatelessWidget {
   Home({super.key});
   final plainTextController = TextEditingController();
   final encryptedTextController = TextEditingController();
   final decryptedTextController = TextEditingController();
-  final noDecryptedTextController = TextEditingController();
+  final dataFromCloud = TextEditingController();
 
   Future<String> encryptData(String plainText) async {
-    encrypted = rsaKeypair.publicKey.encrypt(plainText);
-    return encrypted!;
+    dynamic publicPem = await rootBundle.loadString('assets/public.pem');
+    dynamic publicKey = RSAKeyParser().parse(publicPem) as RSAPublicKey;
+
+    dynamic privatePem = await rootBundle.loadString('assets/private.pem');
+    dynamic privKey = RSAKeyParser().parse(privatePem) as RSAPrivateKey;
+
+    Encrypter encrypter;
+    Encrypted encrypted;
+
+    encrypter = Encrypter(
+      RSA(
+        publicKey: publicKey,
+        privateKey: privKey,
+        encoding: RSAEncoding.OAEP,
+      ),
+    );
+    encrypted = encrypter.encrypt(plainText);
+
+    return encrypted.base64;
   }
 
   Future<String> decryptData(String plainText) async {
-    decrypted = rsaKeypair.privateKey.decrypt(plainText);
+    dynamic publicPem = await rootBundle.loadString('assets/public.pem');
+    dynamic publicKey = RSAKeyParser().parse(publicPem) as RSAPublicKey;
+
+    dynamic privatePem = await rootBundle.loadString('assets/private.pem');
+    dynamic privKey = RSAKeyParser().parse(privatePem) as RSAPrivateKey;
+
+    Encrypter encrypter;
+    String decrypted;
+
+    encrypter = Encrypter(
+      RSA(
+        publicKey: publicKey,
+        privateKey: privKey,
+        encoding: RSAEncoding.OAEP,
+      ),
+    );
+
+    decrypted = encrypter.decrypt(Encrypted.fromBase64(plainText));
     return decrypted;
   }
 
@@ -59,6 +89,9 @@ class Home extends StatelessWidget {
                 GreenButton(
                   title: 'Encrypt Data',
                   onPressed: () async {
+                    // Item? item;
+                    // item!.encryptedData = encryptedData!;
+
                     String encryptedData =
                         await encryptData(plainTextController.text);
                     encryptedTextController.text = encryptedData;
@@ -75,7 +108,7 @@ class Home extends StatelessWidget {
                 ),
                 CustomTextBox(
                   title: 'Data Received without Decryption: ',
-                  textEditingController: noDecryptedTextController,
+                  textEditingController: dataFromCloud,
                 ),
                 CustomTextBox(
                   title: 'Data Received after Decryption: ',
@@ -88,12 +121,9 @@ class Home extends StatelessWidget {
                   title: 'Get Data',
                   onPressed: () async {
                     Item? item = await EncryptDataServices().getEncryptedData();
-                    // Cypher Text Received
-                    noDecryptedTextController.text = item!.encryptedData;
-
-                    // After Decryption
+                    dataFromCloud.text = (item?.encryptedData).toString();
                     String decryptedData =
-                        await decryptData((item.encryptedData).toString());
+                        await decryptData((item?.encryptedData).toString());
                     decryptedTextController.text = decryptedData;
                   },
                 ),
